@@ -148,7 +148,7 @@ Menambahkan user baru. Password default: "password123".
 | modalAddressCity | text | yes | Kota |
 | modalAddressState | text | yes | Provinsi |
 | modalAddressZipCode | text | yes | Kode Pos |
-| customRadioIcon-01 | number | yes | Access Level (0=User, 1=Staff, 2=Admin) |
+| customRadioIcon-01 | number | yes | Access Level (0=User, 1=Supervisor, 2=Admin) |
 | technician | text | no | Check jika Teknisi (value=1) |
 | signature | text | yes | Tanda Tangan (Base64 String) |
 
@@ -236,7 +236,7 @@ Menghapus logbook beserta seluruh catatan (items) di dalamnya.
 
 ## [POST] /units/{unit_id}/logbooks/{logbook_id}/approve
 > Approve Logbook
-Menyetujui logbook (Tanda tangan digital Admin/Staff).
+Menyetujui logbook (Tanda tangan digital Admin/Supervisor).
 
 | Name | Type | Required | Description |
 | :--- | :--- | :--- | :--- |
