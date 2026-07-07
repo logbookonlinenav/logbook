@@ -118,6 +118,16 @@ class LogbookController extends Controller
 
             $logbookItems = $logbook->items;
 
+            if ($logbook->user && isset($logbook->user->position)) {
+                $logbook->user->position = $this->ambilNameJikaJson($logbook->user->position);
+            }
+
+            foreach ($logbookItems as $item) {
+                if ($item->teknisi_user && isset($item->teknisi_user->position)) {
+                    $item->teknisi_user->position = $this->ambilNameJikaJson($item->teknisi_user->position);
+                }
+            }
+
             if ($request->wantsJson()) {
                 $currentUser = auth()->user();
                 $isAdmin = $currentUser && $currentUser->access_level == 2;
@@ -163,9 +173,26 @@ class LogbookController extends Controller
             return back()->with('errorMessage', 'Error: ' . $e->getMessage());
         }
     }
-	
-	
-	private function sendNotification($logbook, $unit_id)
+
+
+    private function ambilNameJikaJson($value)
+    {
+        if (!is_string($value)) {
+            return $value;
+        }
+
+        $decodedValue = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        $json = json_decode($decodedValue, true);
+
+        if (json_last_error() === JSON_ERROR_NONE && is_array($json) && isset($json['name'])) {
+            return $json['name'];
+        }
+
+        return $value;
+    }
+
+    private function sendNotification($logbook, $unit_id)
     {
         try {
             $targetUrl = route('logbook.view', ['unit_id' => $unit_id, 'logbook_id' => $logbook->id]);
@@ -355,7 +382,7 @@ class LogbookController extends Controller
             return back()->with('errorMessage', 'Update failed');
         }
     }
-	
+    
     public function create($unit_id) {
         $unit = Unit::find($unit_id);
         if(!$unit) abort(404);
