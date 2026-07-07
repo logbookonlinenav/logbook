@@ -118,15 +118,7 @@ class LogbookController extends Controller
 
             $logbookItems = $logbook->items;
 
-            if ($logbook->user && isset($logbook->user->position)) {
-                $logbook->user->position = $this->ambilNameJikaJson($logbook->user->position);
-            }
-
-            foreach ($logbookItems as $item) {
-                if ($item->teknisi_user && isset($item->teknisi_user->position)) {
-                    $item->teknisi_user->position = $this->ambilNameJikaJson($item->teknisi_user->position);
-                }
-            }
+            $this->rapihkanLogbookNameJson($logbook, $logbookItems);
 
             if ($request->wantsJson()) {
                 $currentUser = auth()->user();
@@ -154,6 +146,8 @@ class LogbookController extends Controller
             if ($request->wantsJson()) {
                 $htmlContent = view($viewName, compact('logbook', 'unit_id', 'logbookItems'))->render();
 
+                $htmlContent = $this->rapihkanJsonNameDiHtml($htmlContent);
+
                 return response()->json([
                     'success' => true,
                     'message' => 'View retrieved successfully',
@@ -166,14 +160,53 @@ class LogbookController extends Controller
                 ]);
             }
 
-            return view($viewName, compact('logbook', 'unit_id', 'logbookItems'));
+            $htmlContent = view($viewName, compact('logbook', 'unit_id', 'logbookItems'))->render();
+            $htmlContent = $this->rapihkanJsonNameDiHtml($htmlContent);
+
+            return response($htmlContent);
 
         } catch (\Exception $e) {
             if ($request->wantsJson()) return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
             return back()->with('errorMessage', 'Error: ' . $e->getMessage());
         }
     }
+    
+    
 
+    private function rapihkanLogbookNameJson($logbook, $logbookItems)
+    {
+        if ($logbook->user) {
+            foreach (['position', 'jabatan', 'role', 'title'] as $field) {
+                if (isset($logbook->user->{$field})) {
+                    $logbook->user->{$field} = $this->ambilNameJikaJson($logbook->user->{$field});
+                }
+            }
+        }
+
+        foreach (['signedBy', 'approvedBy', 'createdBy'] as $relation) {
+            if (method_exists($logbook, $relation)) {
+                $logbook->loadMissing($relation);
+
+                if ($logbook->{$relation}) {
+                    foreach (['position', 'jabatan', 'role', 'title'] as $field) {
+                        if (isset($logbook->{$relation}->{$field})) {
+                            $logbook->{$relation}->{$field} = $this->ambilNameJikaJson($logbook->{$relation}->{$field});
+                        }
+                    }
+                }
+            }
+        }
+
+        foreach ($logbookItems as $item) {
+            if ($item->teknisi_user) {
+                foreach (['position', 'jabatan', 'role', 'title'] as $field) {
+                    if (isset($item->teknisi_user->{$field})) {
+                        $item->teknisi_user->{$field} = $this->ambilNameJikaJson($item->teknisi_user->{$field});
+                    }
+                }
+            }
+        }
+    }
 
     private function ambilNameJikaJson($value)
     {
@@ -182,6 +215,7 @@ class LogbookController extends Controller
         }
 
         $decodedValue = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $decodedValue = stripslashes($decodedValue);
 
         $json = json_decode($decodedValue, true);
 
@@ -189,7 +223,22 @@ class LogbookController extends Controller
             return $json['name'];
         }
 
+        if (preg_match('/[\"\']name[\"\']\s*:\s*[\"\']([^\"\']+)[\"\']/u', $decodedValue, $match)) {
+            return $match[1];
+        }
+
         return $value;
+    }
+
+    private function rapihkanJsonNameDiHtml($html)
+    {
+        return preg_replace_callback(
+            '/\{[^{}]*?(?:&quot;|\\\\?"|")name(?:&quot;|\\\\?"|")\s*:\s*(?:&quot;|\\\\?"|")([^"&\\\\]+)(?:&quot;|\\\\?"|")[^{}]*?\}/u',
+            function ($match) {
+                return e(html_entity_decode($match[1], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            },
+            $html
+        );
     }
 
     private function sendNotification($logbook, $unit_id)
